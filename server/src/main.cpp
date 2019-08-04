@@ -15,6 +15,7 @@ using namespace std;
 
 #define MAX_LEN 256
 #define LISTEN_PORT 8888
+#define MAX_CLI_NUM 100
 
 bool is_running = true;
 
@@ -42,7 +43,7 @@ int main()
     servaddr.sin_port = htons(LISTEN_PORT);
 
     Bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-    Listen(listenfd, 20); //max cli num is 20
+    Listen(listenfd, MAX_CLI_NUM);
 
     char buf[MAX_LEN];
     struct sockaddr_in cliaddr;
@@ -61,8 +62,8 @@ int main()
                 break;
             }
             printf("received from %s at PORT %d\n",
-            inet_ntop(AF_INET, &cliaddr.sin_addr, str, sizeof(str)),
-            ntohs(cliaddr.sin_port));
+                inet_ntop(AF_INET, &cliaddr.sin_addr, str, sizeof(str)),
+                ntohs(cliaddr.sin_port));
 
             int i = 0;
             for (i = 0; i < n; i++)

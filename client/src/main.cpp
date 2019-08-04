@@ -7,6 +7,8 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #include "wrap.h"
 
@@ -16,19 +18,33 @@ using namespace std;
 #define LISTEN_PORT 8888
 
 
+bool is_running_main = true;
+bool is_running_chld = true;
 
-bool is_running = true;
-
-void signalstop(int signum)
+void signalstop(int sign_no)
 {
-    is_running = false;
-    printf("catch signal!\n");
+    printf("catch INT signal!\n");
+    if(sign_no == SIGINT)
+    {
+        is_running_main = false;
+        is_running_chld = false;
+    }
 }
-
+/*
+void signalchld(int sign_no)
+{
+    printf("catch CHLD signal!\n");
+    if(sign_no == SIGCHLD)
+    {
+        is_running_main = false;
+    }
+}
+*/
 
 int main()
 {
     signal(SIGINT, signalstop);
+    //signal(SIGCHLD, signalchld);
 
     int sockfd = Socket(AF_INET, SOCK_STREAM, 0);
 
@@ -41,20 +57,50 @@ int main()
     Connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
 
     char buf[MAX_LEN];
-    while (is_running == true && fgets(buf, MAX_LEN, stdin) != NULL)
+    pid_t pid = fork();
+    if (pid < 0)
     {
-        Write(sockfd, buf, strlen(buf));
-        int n = Read(sockfd, buf, MAX_LEN);
-
-        if (n == 0)
-            printf("the other side has been closed.\n");
-        else
-            Write(STDOUT, buf, n);
+        perror("fork failed!");
+        return -1;
     }
+    if (pid == 0) //child process
+    {
+        while (is_running_chld && fgets(buf, MAX_LEN, stdin) != NULL)
+        {
+            //if (!strncmp(buf, "quit", 4))
+            //{
+            //    break;
+            //}
 
-    //release source
-    Close(sockfd);
-    cout << "main exit" << endl;
+            //printf("input data: %s", buf);
+            Write(sockfd, buf, strlen(buf));
+            bzero(buf, strlen(buf));
+        }
+
+        printf("child exit!\n");
+    }
+    else //main process
+    {
+        while (is_running_main)
+        {
+            int n = Read(sockfd, buf, MAX_LEN);
+            if (n == 0)
+            {
+                printf("the other side has been closed.\n");
+                break;
+            }
+            else
+            {
+                Write(STDOUT_FILENO, buf, n);
+                bzero(buf, n);
+            }
+        }
+
+        //release source
+        wait(NULL);
+        Close(sockfd);
+        cout << "main exit" << endl;
+    }
 
     return 0;
 }
