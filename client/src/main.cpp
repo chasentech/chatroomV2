@@ -9,6 +9,7 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fcntl.h>
 
 #include "wrap.h"
 
@@ -18,35 +19,39 @@ using namespace std;
 #define LISTEN_PORT 8888
 
 
-bool is_running_main = true;
-bool is_running_chld = true;
+bool is_running = true;
 
 void signalstop(int sign_no)
 {
-    printf("catch INT signal!\n");
     if(sign_no == SIGINT)
     {
-        is_running_main = false;
-        is_running_chld = false;
+        printf("Please input quit to exit!\n");
     }
 }
-/*
+
+
+static int sockfd = Socket(AF_INET, SOCK_STREAM, 0);
 void signalchld(int sign_no)
 {
-    printf("catch CHLD signal!\n");
     if(sign_no == SIGCHLD)
     {
-        is_running_main = false;
+        //release source
+        wait(NULL);
+        Close(sockfd);
+
+        printf("SIGCHLD to exit!\n");
+        exit(0);
     }
 }
-*/
+
+
+
 
 int main()
 {
     signal(SIGINT, signalstop);
-    //signal(SIGCHLD, signalchld);
+    signal(SIGCHLD, signalchld);
 
-    int sockfd = Socket(AF_INET, SOCK_STREAM, 0);
 
     struct sockaddr_in servaddr;
     bzero(&servaddr, sizeof(servaddr));
@@ -65,23 +70,20 @@ int main()
     }
     if (pid == 0) //child process
     {
-        while (is_running_chld && fgets(buf, MAX_LEN, stdin) != NULL)
+        while (fgets(buf, MAX_LEN, stdin) != NULL)
         {
-            //if (!strncmp(buf, "quit", 4))
-            //{
-            //    break;
-            //}
+            if (!strncmp(buf, "quit", 4))
+            {
+                break;
+            }
 
-            //printf("input data: %s", buf);
             Write(sockfd, buf, strlen(buf));
             bzero(buf, strlen(buf));
         }
-
-        printf("child exit!\n");
     }
     else //main process
     {
-        while (is_running_main)
+        while (1)
         {
             int n = Read(sockfd, buf, MAX_LEN);
             if (n == 0)
@@ -96,10 +98,9 @@ int main()
             }
         }
 
-        //release source
-        wait(NULL);
         Close(sockfd);
-        cout << "main exit" << endl;
+        printf("main exit!\n");
+
     }
 
     return 0;

@@ -7,6 +7,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <signal.h>
+#include <sys/select.h>
 
 #include "wrap.h"
 
@@ -19,20 +20,23 @@ using namespace std;
 
 bool is_running = true;
 
+
+static int listenfd = Socket(AF_INET, SOCK_STREAM, 0);
+
 void signalstop(int signum)
 {
     is_running = false;
     printf("catch signal!\n");
+    Close(listenfd);
+    exit(0);
 }
 
 
 int main()
 {
-    //signal(SIGINT, signalstop);
+    signal(SIGINT, signalstop);
 
-    char str[INET_ADDRSTRLEN]; //INET_ADDRSTRLEN = 16
-
-    int listenfd = Socket(AF_INET, SOCK_STREAM, 0);
+    //int listenfd = Socket(AF_INET, SOCK_STREAM, 0);
     int opt = 1;
     setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
@@ -45,34 +49,98 @@ int main()
     Bind(listenfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
     Listen(listenfd, MAX_CLI_NUM);
 
-    char buf[MAX_LEN];
-    struct sockaddr_in cliaddr;
+    int maxi = -1;
+    int maxfd = listenfd;
+    fd_set rset, allset;
+    FD_ZERO(&allset);
+    FD_SET(listenfd, &allset);
+
+    int i = 0;
+    int client_fd[FD_SETSIZE]; //FD_SETSIZE为1024
+    for (i = 0; i < FD_SETSIZE; i++)
+        client_fd[i] = -1;
+
+    char str_IP[INET_ADDRSTRLEN]; //INET_ADDRSTRLEN = 16
+    char buf[MAX_LEN] = {0};
     printf("Accepting connections ...\n");
-    while (1)
+
+    while (is_running)
     {
-        socklen_t cliaddr_len = sizeof(cliaddr);
-        int connfd = Accept(listenfd,
-                     (struct sockaddr *)&cliaddr, &cliaddr_len);
-        while (1)
+        rset = allset;
+        int nready = select(maxfd+1, &rset, NULL, NULL, NULL);
+        if (nready < 0)
         {
-            int n = Read(connfd, buf, MAX_LEN);
-            if (n == 0)
-            {
-                printf("the other side has been closed.\n");
-                break;
-            }
-            printf("received from %s at PORT %d\n",
-                inet_ntop(AF_INET, &cliaddr.sin_addr, str, sizeof(str)),
+            perror("select error:");
+        }
+
+        if (FD_ISSET(listenfd, &rset)) // new connect arived
+        {
+
+            struct sockaddr_in cliaddr;
+            socklen_t cliaddr_len = sizeof(cliaddr);
+            int connfd = Accept(listenfd,
+                         (struct sockaddr *)&cliaddr, &cliaddr_len);
+
+            printf("connect from %s at PORT %d\n",
+                inet_ntop(AF_INET, &cliaddr.sin_addr, str_IP, sizeof(str_IP)),
                 ntohs(cliaddr.sin_port));
 
-            int i = 0;
-            for (i = 0; i < n; i++)
-                buf[i] = toupper(buf[i]);
+            for (i = 0; i < FD_SETSIZE; i++)
+            {
+                if (client_fd[i] < 0)
+                {
+                    client_fd[i] = connfd; //save descriptor
+                    break;
+                }
+            }
+            if (i == FD_SETSIZE)
+            {
+                printf("too many clients\n");
+                exit(1);
+            }
 
-            Write(connfd, buf, n);
+            FD_SET(connfd, &allset);
+            if (connfd > maxfd) maxfd = connfd; //maxfd for select
+            if (i > maxi) maxi = i;     //maxi in client_fd
+
+            printf("max fd: %d\n", maxi + 1);
+
+            if (--nready == 0) continue;
         }
-        Close(connfd);
+
+        for (i = 0; i <= maxi; i++) //already connect sockfd
+        {
+            int sockfd = client_fd[i];
+            if (sockfd < 0) continue;
+
+            if (FD_ISSET(sockfd, &rset))
+            {
+                int n = Read(sockfd, buf, MAX_LEN);
+                if (n == 0)
+                {
+                    printf("the other side has been closed.\n");
+                    Close(sockfd);
+                    FD_CLR(sockfd, &allset);
+                    client_fd[i] = -1;
+                } else
+                {
+                    printf("received buf: %s", buf);
+
+                    //do something
+                    //...
+
+                    Write(sockfd, buf, n);
+                    memset(buf, 0, n);
+                }
+
+                if (--nready == 0) break; //notice maxi and nready relationship
+            }
+        }
     }
+
+
+    //Close(listenfd);
+
 
     return 0;
 }
