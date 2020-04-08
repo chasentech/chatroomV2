@@ -11,49 +11,20 @@
 #include <sys/select.h>
 
 #include "wrap.h"
+#include "en_de_code.h"
 
 using namespace std;
 
-
-#define MAX_LEN 256
-#define LISTEN_PORT 8888
+#define MAX_BUF_LEN 256
+#define LISTEN_PORT 10500
 #define MAX_CLI_NUM 100
-
-typedef enum CliType
-{
-    CLI_TYPE_ADMIN,
-    CLI_TYPE_NORMAL,
-}CliType;
 
 typedef struct CliInfo
 {
     char IP[INET_ADDRSTRLEN]; //INET_ADDRSTRLEN = 16
     int port;
     int sockfd;
-    CliType type; //administrator normal
 }CliInfo;
-
-
-typedef enum MsgType
-{
-    READY_TYPE = 1,
-    CHAT_TYPE,
-}MsgType;
-
-typedef enum ReadyMsgType
-{
-    READY_MSG_SIGN_IN = 1,
-    READY_MSG_SIGN_ON = 2,
-    READY_MSG_ADMIN = 3,
-    READY_MSG_TEST = 4,
-}ReadyMsgType;
-
-typedef enum ChatMsgType
-{
-    CHAT_MSG_NORMAL = 1,
-    CHAT_MSG_GET_ID = 2,
-}ChatMsgType;
-
 
 vector<CliInfo> g_vec_cli_info;
 
@@ -66,8 +37,7 @@ void print_cli_info(vector<CliInfo> &vec)
     {
         cout << "    cli[" << i << "]_IP:     " << vec[i].IP << endl
              << "    cli[" << i << "]_port:   " << vec[i].port << endl
-             << "    cli[" << i << "]_sockfd: " << vec[i].sockfd << endl
-             << "    cli[" << i << "]_type:   " << vec[i].type << endl;
+             << "    cli[" << i << "]_sockfd: " << vec[i].sockfd << endl;
         cout << "----------------------------" << endl;
     }
 }
@@ -108,88 +78,107 @@ void printf_buf(char *buf)
     printf("msg: [%s]\n", buf+4+n+1);
 }
 
-void decode_ready(char *buf, int sockfd)
+void send_list(vector<CliInfo> &vec, int sockfd)
 {
-
-}
-void decode_chat(char *buf, int sockfd)
-{
-    if (buf[3] == CHAT_MSG_NORMAL)
+    for (unsigned int i = 0; i < vec.size(); i++)
     {
-        int from = sockfd;
-        int to = -1;
-        int n = sizeof(to);
-        memcpy(&to, (const char *)(buf+4), n);
-
-        printf("[%d]-->[%d]\n", from, to);
-        printf("nmsg: [%d]\n", buf[4+n]);
-
-        if (buf[4+n] >= 10)
-        {
-            printf("nmsg is too long!\n");
-            return;
-        }
-
-        //msg number max is 10
-        char *argv_t[10] = {NULL};
-        char *p = buf+4+n+1;
-
-        int j = 0;
-        argv_t[j++] = p;
-        while (*p != '$')
-        {
-            if (*p == '|')
-            {
-                *p = '\0';
-                argv_t[j++] = p + 1;
-            }
-            p++;
-        }
-        *p = '\0';
-
-
-        for (j = 0 ; argv_t[j] != NULL &&
-                (strcmp(argv_t[j], "")) && j < 10; j++)
-        {
-            printf("msg[%d]: [%s]\n", j, argv_t[j]);
-        }
-
-        char send_buf[200] = {0};
-        sprintf(send_buf, "\n[%d]-->[%d]: %s\n", from, to, argv_t[0]);
-        Write(to, send_buf, strlen(send_buf));
-
-    }
-    else if (buf[3] == CHAT_MSG_GET_ID)
-    {
-        return_fd(g_vec_cli_info, sockfd);
+        cout << "    cli[" << i << "]_IP:     " << vec[i].IP << endl
+             << "    cli[" << i << "]_port:   " << vec[i].port << endl
+             << "    cli[" << i << "]_sockfd: " << vec[i].sockfd << endl;
+        cout << "----------------------------" << endl;
+        char buf_tmp[100] = {0};
+        sprintf(buf_tmp, "\nIP: [%s], Port: [%d]\n", vec[i].IP, vec[i].port);
+        write(sockfd, buf_tmp, strlen(buf_tmp));
     }
 }
 
-void decode(char *buf, int sockfd)
+int handle_command(DataCommand *data, int sockfd, char *buf)
 {
-    if (buf[0] == '#' && buf[buf[1] - 1] == '$')
+    switch (data->command)
     {
-        printf("rece correct!\n");
-        if (buf[2] == READY_TYPE)
-            decode_ready(buf, sockfd);
-        else if (buf[2] == CHAT_TYPE)
-            decode_chat(buf, sockfd);
-        else printf("rece type error!\n");
+        case COMMAND_APPLY_CONNECT:
+            //...
+            break;
+
+        case COMMAND_APPLY_CONNECT_SUCCESS:
+            //...
+            break;
+
+        case COMMAND_APPLY_CONNECT_FAIL:
+            //...
+            break;
+
+        case COMMANG_GET_LIST_FRIEND:
+            send_list(g_vec_cli_info, sockfd);
+            break;
+
+        default:
+            break;
     }
-    else printf("rece error!\n");
+    return 0;
 }
 
+int handle_verify(DataVerify *data, int sockfd, char *buf)
+{
+    DataDesc sendData;
+    memset(&sendData, 0, sizeof(sendData));
+    sendData.dataType = DATA_COMMAND;
+    if (data->type == VERIFY_SIGN_IN)
+    {
+        //to de check
+        sendData.dataCommand.command = COMMAND_SIGN_IN_SUCCESS;
+    }
+    if (data->type == VERIFY_SIGN_UP)
+    {
+
+    }
+
+    encode(sendData, buf);
+    int len = 0;
+    memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
+    Write(sockfd, buf, len);
+    memset(buf, 0, len);
+
+    return 0;
+}
+
+int handle_chat(DataChat *data, int sockfd, char *buf)
+{
+    return 0;
+}
+
+int handle_deal(char *buf, int sockfd)
+{
+    char buf_send[MAX_BUF_LEN] = {0};
+    DataDesc revData;
+    memset(&revData, 0, sizeof(revData));
+    decode(&revData, buf);
+    printf_SendData(&revData);
+    if (revData.dataType == DATA_COMMAND)
+    {
+        handle_command(&revData.dataCommand, sockfd, buf_send);
+    }
+    if (revData.dataType == DATA_VERIFY)
+    {
+        handle_verify(&revData.dataVerify, sockfd, buf_send);
+    }
+    if (revData.dataType == DATA_CHAT)
+    {
+        handle_chat(&revData.dataChat, sockfd, buf_send);
+    }
+
+    return 0;
+}
 
 static int listenfd = Socket(AF_INET, SOCK_STREAM, 0);
 
 void signalstop(int signum)
 {
     printf("catch signal!\n");
-    Close(listenfd);
-    g_vec_cli_info.clear();
-    exit(0);
+    // Close(listenfd);
+    // g_vec_cli_info.clear();
+    // exit(0);
 }
-
 
 int main()
 {
@@ -220,16 +209,17 @@ int main()
         client_fd[i] = -1;
 
     char str_IP[INET_ADDRSTRLEN]; //INET_ADDRSTRLEN = 16
-    char buf[MAX_LEN] = {0};
+    char buf_rev[MAX_BUF_LEN] = {0};
     printf("Accepting connections ...\n");
 
     while (1)
     {
         rset = allset;
         int nready = select(maxfd+1, &rset, NULL, NULL, NULL);
-        if (nready < 0)
+        if (nready <= 0)
         {
-            perror("select error:");
+            perror("select error");
+            break;
         }
 
         if (FD_ISSET(listenfd, &rset)) // new connect arived
@@ -244,7 +234,6 @@ int main()
             strcpy(cli_info.IP, str_IP);
             cli_info.port = ntohs(cliaddr.sin_port);
             cli_info.sockfd = connfd;
-            cli_info.type = CLI_TYPE_NORMAL;
 
             printf("connect from %s at PORT %d\n",
                 str_IP, ntohs(cliaddr.sin_port));
@@ -282,7 +271,7 @@ int main()
 
             if (FD_ISSET(sockfd, &rset))
             {
-                int n = Read(sockfd, buf, MAX_LEN);
+                int n = Read(sockfd, buf_rev, MAX_BUF_LEN);
                 if (n == 0)
                 {
                     print_cli_info(g_vec_cli_info);
@@ -298,10 +287,8 @@ int main()
                 {
                     //printf("received buf: %s", buf);
 
-                    //do something
-                    //...
-                    decode(buf, sockfd);
-                    memset(buf, 0, n);
+                    handle_deal(buf_rev, sockfd);
+                    memset(buf_rev, 0, n);
                 }
 
                 if (--nready == 0) break; //notice maxi and nready relationship, can early exit
@@ -309,9 +296,9 @@ int main()
         }
     }
 
-
-    //Close(listenfd);
-
+    printf("main exit!\n");
+    g_vec_cli_info.clear();
+    Close(listenfd);
 
     return 0;
 }
