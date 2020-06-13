@@ -92,33 +92,31 @@ void send_list(vector<CliInfo> &vec, int sockfd)
     }
 }
 
-int handle_command(DataCommand *data, int sockfd, char *buf)
+int handle_command(DataCommand *recvData, DataDesc *sendData)
 {
-    switch (data->command)
+    switch (recvData->command)
     {
-        case COMMAND_APPLY_CONNECT:
-            //...
-            break;
+        // case COMMAND_APPLY_CONNECT:
+        //     //check out of client num
+        //     //
+        //     sendData->dataType = DATA_COMMAND;
+        //     sendData->dataCommand.command = COMMAND_APPLY_CONNECT_SUCCESS;
+        //     break;
 
-        case COMMAND_APPLY_CONNECT_SUCCESS:
-            //...
-            break;
-
-        case COMMAND_APPLY_CONNECT_FAIL:
-            //...
-            break;
-
-        case COMMANG_GET_LIST_FRIEND:
-            send_list(g_vec_cli_info, sockfd);
+        case COMMANG_GET_FRIEND_LIST:
+            sendData->dataType = DATA_COMMAND;
+            sendData->dataCommand.command = COMMANG_SHOW_INFO;
+            sprintf(sendData->dataCommand.info, "[show]aaaabbbbcccc");
             break;
 
         default:
             break;
     }
+
     return 0;
 }
 
-int handle_verify(DataVerify *data, int sockfd, char *buf)
+int handle_verify(DataVerify *data)
 {
     DataDesc sendData;
     memset(&sendData, 0, sizeof(sendData));
@@ -133,39 +131,43 @@ int handle_verify(DataVerify *data, int sockfd, char *buf)
 
     }
 
-    encode(sendData, buf);
+    return 0;
+}
+
+int handle_chat(DataChat *data)
+{
+    return 0;
+}
+
+int handle_msg(char *buf_recv, char *buf_send, int sockfd)
+{
+    DataDesc sendData;
+    memset(&sendData, 0, sizeof(sendData));
+
+    DataDesc recvData;
+    memset(&recvData, 0, sizeof(recvData));
+    decode(&recvData, buf_recv);
+    // printf_SendData(&recvData);
+
+    if (recvData.dataType == DATA_COMMAND)
+    {
+        sendData.dataType = DATA_COMMAND;
+        handle_command(&recvData.dataCommand, &sendData);
+    }
+    // if (recvData.dataType == DATA_VERIFY)
+    // {
+    //     handle_verify(&recvData.dataVerify);
+    // }
+    // if (recvData.dataType == DATA_CHAT)
+    // {
+    //     handle_chat(&recvData.dataChat);
+    // }
+
+    encode(sendData, buf_send);
+
     int len = 0;
-    memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
-    Write(sockfd, buf, len);
-    memset(buf, 0, len);
-
-    return 0;
-}
-
-int handle_chat(DataChat *data, int sockfd, char *buf)
-{
-    return 0;
-}
-
-int handle_deal(char *buf, int sockfd)
-{
-    char buf_send[MAX_BUF_LEN] = {0};
-    DataDesc revData;
-    memset(&revData, 0, sizeof(revData));
-    decode(&revData, buf);
-    printf_SendData(&revData);
-    if (revData.dataType == DATA_COMMAND)
-    {
-        handle_command(&revData.dataCommand, sockfd, buf_send);
-    }
-    if (revData.dataType == DATA_VERIFY)
-    {
-        handle_verify(&revData.dataVerify, sockfd, buf_send);
-    }
-    if (revData.dataType == DATA_CHAT)
-    {
-        handle_chat(&revData.dataChat, sockfd, buf_send);
-    }
+    memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
+    Write(sockfd, buf_send, len);
 
     return 0;
 }
@@ -182,6 +184,9 @@ void signalstop(int signum)
 
 int main()
 {
+    // test_en_de_code();
+    // return 0;
+
     signal(SIGINT, signalstop);
 
     //int listenfd = Socket(AF_INET, SOCK_STREAM, 0);
@@ -209,7 +214,8 @@ int main()
         client_fd[i] = -1;
 
     char str_IP[INET_ADDRSTRLEN]; //INET_ADDRSTRLEN = 16
-    char buf_rev[MAX_BUF_LEN] = {0};
+    char buf_recv[MAX_BUF_LEN] = {0};
+    char buf_send[MAX_BUF_LEN] = {0};
     printf("Accepting connections ...\n");
 
     while (1)
@@ -271,7 +277,7 @@ int main()
 
             if (FD_ISSET(sockfd, &rset))
             {
-                int n = Read(sockfd, buf_rev, MAX_BUF_LEN);
+                int n = Read(sockfd, buf_recv, MAX_BUF_LEN);
                 if (n == 0)
                 {
                     print_cli_info(g_vec_cli_info);
@@ -287,8 +293,13 @@ int main()
                 {
                     //printf("received buf: %s", buf);
 
-                    handle_deal(buf_rev, sockfd);
-                    memset(buf_rev, 0, n);
+                    handle_msg(buf_recv, buf_send, sockfd);
+
+                    //clear buff
+                    memset(buf_recv, 0, n);
+                    int len = 0;
+                    memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
+                    memset(buf_send, 0, len);
                 }
 
                 if (--nready == 0) break; //notice maxi and nready relationship, can early exit

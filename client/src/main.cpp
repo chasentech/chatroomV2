@@ -259,13 +259,18 @@ void module_sign_up(int sockfd, char *buf)
 
 void module_admin(int sockfd, char *buf)
 {
+    //fill data
     DataDesc sendData;
     memset(&sendData, 0, sizeof(sendData));
     sendData.dataType = DATA_COMMAND;
-    sendData.dataCommand.command = COMMANG_GET_LIST_FRIEND;
-    encode(sendData, buf);
-    printf_SendData(&sendData);
+    sendData.dataCommand.command = COMMANG_GET_FRIEND_LIST;
+    strcpy((char *)sendData.dataCommand.info, "This is test info");
 
+    //encode
+    encode(sendData, buf);
+    //printf_SendData(&sendData);
+
+    //write msg
     int len = 0;
     memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
     Write(sockfd, buf, len);
@@ -286,13 +291,109 @@ void signalstop(int sign_no)
     }
 }
 
+int handle_command(DataCommand *recvData)
+{
+    switch (recvData->command)
+    {
+        // case COMMAND_APPLY_CONNECT:
+        //     //check out of client num
+        //     //
+        //     recvData->dataType = DATA_COMMAND;
+        //     sendData->dataCommand.command = COMMAND_APPLY_CONNECT_SUCCESS;
+        //     break;
+
+        case COMMANG_SHOW_INFO:
+            printf("%s\n", recvData->info);
+            break;
+
+    //     default:
+    //         break;
+    }
+
+    return 0;
+}
+
+int handle_verify(DataVerify *data)
+{
+    // DataDesc sendData;
+    // memset(&sendData, 0, sizeof(sendData));
+    // sendData.dataType = DATA_COMMAND;
+    // if (data->type == VERIFY_SIGN_IN)
+    // {
+    //     //to de check
+    //     sendData.dataCommand.command = COMMAND_SIGN_IN_SUCCESS;
+    // }
+    // if (data->type == VERIFY_SIGN_UP)
+    // {
+
+    // }
+
+    return 0;
+}
+
+int handle_chat(DataChat *data)
+{
+    return 0;
+}
+
+int handle_msg(char *buf_recv, char *buf_send)
+{
+    DataDesc recvData;
+    memset(&recvData, 0, sizeof(recvData));
+    decode(&recvData, buf_recv);
+    // printf_SendData(&recvData);
+
+    if (recvData.dataType == DATA_COMMAND)
+    {
+        handle_command(&recvData.dataCommand);
+    }
+    // if (recvData.dataType == DATA_VERIFY)
+    // {
+    //     handle_verify(&recvData.dataVerify);
+    // }
+    // if (recvData.dataType == DATA_CHAT)
+    // {
+    //     handle_chat(&recvData.dataChat);
+    // }
+
+    // encode(sendData, buf_send);
+
+    // int len = 0;
+    // memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
+    // Write(sockfd, buf_send, len);
+
+    return 0;
+}
+
+// 测试变长参数
+void test_printf(const char *fmt, ...)
+{
+    printf("%s", fmt);
+}
+
+#define PRINTF_ERROR(fmt, ...) (printf(L_RED "[ERROR] " NONE "%s" , fmt))
+#define PRINTF_WARN(fmt, ...)  (printf(YELLOW "[WARN] %s" NONE, fmt))
+#define PRINTF_INFO(fmt, ...)  (printf(GREEN "[INFO] %s" NONE, fmt))
+#define PRINTF_DEBUG(fmt, ...) (printf(WHITE "[DEBUG] %s" NONE, fmt))
+
 int main()
 {
+    // printf("[%2u]" RED "RED " L_RED "L_RED\n" NONE, __LINE__);
+    // printf("[%2u]" GREEN "GREEN " L_GREEN "L_GREEN\n" NONE, __LINE__);
+    // printf("[this]" " is" " test" "\n");
+    // test_printf("[this]" " is" " test" "\n");
+    // PRINTF_ERROR("444\n");
+    // PRINTF_WARN("333\n");
+    // PRINTF_INFO("222\n");
+    // PRINTF_DEBUG("111\n");
+
+    // return 0;
+
     signal(SIGINT, signalstop);
     //printf_color();
 
     char buf_send[MAX_BUF_LEN] = {0};
-    char buf_rev[MAX_BUF_LEN] = {0};
+    char buf_recv[MAX_BUF_LEN] = {0};
     int sockfd = Socket(AF_INET, SOCK_STREAM, 0);
 
     struct sockaddr_in servaddr;
@@ -372,7 +473,7 @@ int main()
 
         if (FD_ISSET(sockfd, &fdset))
         {
-            int n = Read(sockfd, buf_rev, MAX_BUF_LEN);
+            int n = Read(sockfd, buf_recv, MAX_BUF_LEN);
             if (n == 0)
             {
                 printf("the other side has been closed.\n");
@@ -380,19 +481,55 @@ int main()
             }
             else
             {
-                DataDesc revData;
-                memset(&revData, 0, sizeof(revData));
-                decode(&revData, buf_rev);
-                if (revData.dataType == DATA_COMMAND)
-                {
-                    if (revData.dataCommand.command == COMMAND_SIGN_IN_SUCCESS)
-                    {
-                        printf("sign in success!\n");
-                    }
-                }
+                handle_msg(buf_recv, buf_send);
 
-                //Write(STDOUT_FILENO, buf_rev, n);
-                memset(buf_rev, 0, n);
+                //clear buff
+                memset(buf_recv, 0, n);
+                int len = 0;
+                memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
+                memset(buf_send, 0, len);
+
+                // //clear buf_recv buf_send
+                // memset(buf_recv, 0, n);
+                // int len = 0;
+                // memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
+                // memset(buf_send, 0, len);
+
+                // DataDesc recvData;
+                // memset(&recvData, 0, sizeof(recvData));
+                // decode(&recvData, buf_recv);
+                // if (recvData.dataType == DATA_COMMAND)
+                // {
+                //     switch (recvData.dataCommand.command)
+                //     {
+                //         case COMMAND_APPLY_CONNECT_SUCCESS:
+                //             printf("[recv] apply connect success!\n");
+                //             break;
+
+                //         case COMMAND_APPLY_CONNECT_FAIL:
+                //             printf("[recv] apply connect fail!\n");
+                //             break;
+
+                //         case COMMAND_SIGN_IN_SUCCESS:
+                //             printf("[recv] sign in success!\n");
+                //             break;
+
+                //         case COMMAND_SIGN_IN_FAIL:
+                //             printf("[recv] sign in fail!\n");
+                //             break;
+
+                //         case COMMAND_SIGN_UP_SUCCESS:
+                //             printf("[recv] sign up success!\n");
+                //             break;
+
+                //         case COMMAND_SIGN_UP_FAIL:
+                //             printf("[recv] sign up fail!\n");
+                //             break;
+
+                //         default:
+                //             break;
+                //     }
+                // }
             }
         }
 

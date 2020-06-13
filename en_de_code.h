@@ -21,8 +21,8 @@ typedef enum DataType
 
 typedef enum VerifyType
 {
-    VERIFY_SIGN_IN = 0, //command
-    VERIFY_SIGN_UP,  //sign in or sign up
+    VERIFY_SIGN_IN = 0, //sign in
+    VERIFY_SIGN_UP,  //sign up
 }VerifyType;
 
 typedef enum CommandType
@@ -35,12 +35,14 @@ typedef enum CommandType
     COMMAND_SIGN_UP_SUCCESS,        //cli <<-- ser,
     COMMAND_SIGN_UP_FAIL,           //cli <<-- ser,
     COMMAND_DIS_CONNECT,            //cli -->> ser,
-    COMMANG_GET_LIST_FRIEND,        //cli -->> ser,
+    COMMANG_GET_FRIEND_LIST,        //cli -->> ser,
+    COMMANG_SHOW_INFO,              //cli <<-- ser,
 }CommandType;
 
 typedef struct DataCommand
 {
     CommandType command;
+    char info[100];
 }DataCommand;
 typedef struct DataVerify
 {
@@ -72,5 +74,6 @@ int decode_verify(DataVerify *dataVerify, char *buf);
 int decode_chat(DataChat *dataChat, char *buf);
 void decode(DataDesc *data, char *buf);
 void printf_SendData(DataDesc *data);
+void test_en_de_code();
 
 #endif
