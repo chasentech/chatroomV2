@@ -5,6 +5,13 @@
 
 int encode_command(DataCommand dataCommand, char *buf)
 {
+    int info_len = strlen(dataCommand.info);
+    if (info_len >= 190)
+    {
+        printf("dataCommand.info is too large!\n");
+        return -1;
+    }
+
     int len = 4; //4 is dataCommand.command size
     memcpy(&buf[CONTENT_OFFSET], &dataCommand.command, 4);
     strcpy((char *)&buf[4+CONTENT_OFFSET], (char *)&dataCommand.info);
@@ -38,21 +45,19 @@ if DataType = DATA_COMMAND
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 # lenth   type    command info........... $
 
-
 if DataType = DATA_VERIFY
 0 1       5       9       13      17      21
 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
-# lenth   type    t c l z h a n g | * * * * * * &
-
+# lenth   type    t c l z h a n g | * * * * * * $
 
 if DataType = DATA_CHAT
 0 1       5       9       13      17      21
-0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 O O
+0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0
 # lenth   type    from    to      G o o d   m o r n i n g $
 
 */
 
-void encode(DataDesc data, char *buf)
+int encode(DataDesc data, char *buf)
 {
     buf[HEAD_OFFSET] = '#';
     int encode_len = 0;
@@ -63,23 +68,45 @@ void encode(DataDesc data, char *buf)
         dataType = DATA_COMMAND;
         memcpy(&buf[DATA_TYPE_OFFSET], &dataType, DATA_TYPE_SIZE);
         encode_len = encode_command(data.dataCommand, buf);
+        if (encode_len < 0)
+        {
+            printf("encode failed in DATA_COMMAND\n");
+            return -1;
+        }
     }
     if (data.dataType == DATA_VERIFY)
     {
         dataType = DATA_VERIFY;
         memcpy(&buf[DATA_TYPE_OFFSET], &dataType, DATA_TYPE_SIZE);
         encode_len = encode_verify(data.dataVerify, buf);
+        if (encode_len < 0)
+        {
+            printf("encode failed in DATA_VERIFY\n");
+            return -1;
+        }
     }
     if (data.dataType == DATA_CHAT)
     {
         dataType = DATA_CHAT;
         memcpy(&buf[DATA_TYPE_OFFSET], &dataType, DATA_TYPE_SIZE);
         encode_len = encode_chat(data.dataChat, buf);
+        if (encode_len < 0)
+        {
+            printf("encode failed in DATA_CHAT\n");
+            return -1;
+        }
     }
 
     buf[CONTENT_OFFSET + encode_len] = '$';
-    int iiiii = CONTENT_OFFSET + 1 + encode_len; //MAX 256
-    memcpy(&buf[LEN_OFFSET], &iiiii, LEN_SIZE);
+    int total_len = CONTENT_OFFSET + 1 + encode_len; //MAX 256
+
+    if (total_len >= 203)
+    {
+        printf("encode failed in total len\n");
+        return -1;
+    }
+    memcpy(&buf[LEN_OFFSET], &total_len, LEN_SIZE);
+    return 0;
 }
 
 int decode_command(DataCommand *dataCommand, char *buf)
@@ -136,24 +163,24 @@ int decode_chat(DataChat *dataChat, char *buf)
     return len + 8;
 }
 
-void decode(DataDesc *data, char *buf)
+int decode(DataDesc *data, char *buf)
 {
     int len = 0;
-    memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
     if (buf[HEAD_OFFSET] == '#')
     {
+        memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
         if (buf[len - 1] != '$')
         {
             printf("[en_de_code] check buf failed: len error!\n");
-            return;
+            return -1;
         }
     }
     else
     {
         printf("[en_de_code] check buf failed: head error!\n");
-        return;
+        return -1;
     }
-    buf[len - 1] = '\0';
+    buf[len - 1] = '\0'; //remove '$'
 
     int encode_type = -1;
     memcpy(&encode_type, &buf[DATA_TYPE_OFFSET], DATA_TYPE_SIZE);
@@ -167,11 +194,14 @@ void decode(DataDesc *data, char *buf)
 
     if (encode_type == DATA_CHAT)
         decode_chat(&data->dataChat, buf);
+    
+    return 0;
 }
 
 void printf_SendData(DataDesc *data)
 {
-    printf(">>[en_de_code]-------------------------------<<\n");
+    printf("[en_de_code]\n");
+    printf(">>------------------------------------------<<\n");
     printf("dataType  = %d\n", data->dataType);
     printf("DataCommand:\n");
     printf("    command = %d\n", data->dataCommand.command);
@@ -185,6 +215,68 @@ void printf_SendData(DataDesc *data)
     printf("chat_to     = %d\n", data->dataChat.chat_to);
     printf("data        = %s\n", data->dataChat.data);
     printf(">>------------------------------------------<<\n");
+}
+
+int get_buf_len(char *buf)
+{
+    int len = 0;
+    if (buf[HEAD_OFFSET] == '#')
+    {
+        memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
+        if (buf[len - 1] != '$')
+        {
+            printf("[en_de_code] check buf failed: len error!\n");
+            return -1;
+        }
+    }
+    else
+    {
+        printf("[en_de_code] check buf failed: head error!\n");
+        return -1;
+    }
+    return len;
+}
+
+void fill_command(CommandType commandTYpe, char *info, char *buf)
+{
+    buf[0] = '#';
+    int data_type = DATA_COMMAND;
+    int command = commandTYpe;
+    memcpy(&buf[5], &data_type, 4);
+    memcpy(&buf[9], &command, 4);
+    memcpy(&buf[13], info, strlen(info));
+    int len = 13 + strlen(info);
+    buf[len++] = '$';  // data[9] ==> len 10
+    memcpy(&buf[1], &len, 4);
+}
+void fill_verify(char type, char *name, char *pswd, char *buf)
+{
+    int name_len = strlen(name);
+    int pswd_len = strlen(pswd);
+    buf[0] = '#';
+    int data_type = DATA_VERIFY;
+    int verify_type = type;
+    memcpy(&buf[5], &data_type, 4);
+    memcpy(&buf[9], &verify_type, 1);
+    memcpy(&buf[10], name, name_len);
+    memcpy(&buf[10+name_len], "|", 1);
+    memcpy(&buf[10+name_len+1], pswd, pswd_len);
+    int len = 10 + name_len + 1 + pswd_len;
+    buf[len++] = '$';
+    memcpy(&buf[1], &len, 4);
+}
+void fill_chat(int from, int to, char *chat_msg, char *buf)
+{
+    int chat_msg_len = strlen(chat_msg);
+    buf[0] = '#';
+    int data_type = DATA_CHAT;
+    memcpy(&buf[5], &data_type, 4);
+    memcpy(&buf[9], &from, 4);
+    memcpy(&buf[13], &to, 4);
+    memcpy(&buf[17], chat_msg, chat_msg_len);
+    int len = 17 + chat_msg_len;
+    buf[len++] = '$';
+    memcpy(&buf[1], &len, 4);
 }
 
 void test_en_de_code_1()

@@ -42,7 +42,7 @@ typedef enum CommandType
 typedef struct DataCommand
 {
     CommandType command;
-    char info[100];
+    char info[190];
 }DataCommand;
 typedef struct DataVerify
 {
@@ -65,14 +65,26 @@ typedef struct DataDesc
     DataChat dataChat;
 }DataDesc;
 
+//encode
 int encode_command(DataCommand dataCommand, char *buf);
 int encode_verify(DataVerify dataVerify, char *buf);
 int encode_chat(DataChat dataChat, char *buf);
-void encode(DataDesc data, char *buf);
+int encode(DataDesc data, char *buf);
+
+//decode
 int decode_command(DataCommand *dataCommand, char *buf);
 int decode_verify(DataVerify *dataVerify, char *buf);
 int decode_chat(DataChat *dataChat, char *buf);
-void decode(DataDesc *data, char *buf);
+int decode(DataDesc *data, char *buf);
+
+/*
+ * Fill the buff directly with the following three APIs, but this is not recommended
+ */
+void fill_command(CommandType commandTYpe, char *info, char *buf);
+void fill_verify(char type, char *name, char *pswd, char *buf);
+void fill_chat(int from, int to, char *chat_msg, char *buf);
+
+int get_buf_len(char *buf);
 void printf_SendData(DataDesc *data);
 void test_en_de_code();
 

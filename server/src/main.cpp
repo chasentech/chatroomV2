@@ -24,10 +24,10 @@ typedef struct CliInfo
     char IP[INET_ADDRSTRLEN]; //INET_ADDRSTRLEN = 16
     int port;
     int sockfd;
+    char name[20];
 }CliInfo;
 
 vector<CliInfo> g_vec_cli_info;
-
 
 void print_cli_info(vector<CliInfo> &vec)
 {
@@ -35,11 +35,13 @@ void print_cli_info(vector<CliInfo> &vec)
     cout << "client number: " << vec.size() << endl;
     for (unsigned int i = 0; i < vec.size(); i++)
     {
-        cout << "    cli[" << i << "]_IP:     " << vec[i].IP << endl
+        cout << "    cli[" << i << "]_name:   " << vec[i].IP << endl
+             << "    cli[" << i << "]_port:   " << vec[i].port << endl
              << "    cli[" << i << "]_port:   " << vec[i].port << endl
              << "    cli[" << i << "]_sockfd: " << vec[i].sockfd << endl;
         cout << "----------------------------" << endl;
     }
+    cout << endl;
 }
 
 void vec_rm_value(vector<CliInfo> &vec, int value)
@@ -66,6 +68,19 @@ void return_fd(vector<CliInfo> &vec, int fd)
     }
 }
 
+int get_fd_by_name(vector<CliInfo> &vec, char *name)
+{
+    vector<CliInfo>::iterator it;
+    for (it = vec.begin(); it != vec.end(); it++)
+    {
+        if (strcpy(it->name, name) == 0)
+        {
+            return it->sockfd;
+        }
+    }
+    return -1;
+}
+
 void printf_buf(char *buf)
 {
     printf("[%c][%d], t1:[%d], t2:[%d]\n",
@@ -78,23 +93,24 @@ void printf_buf(char *buf)
     printf("msg: [%s]\n", buf+4+n+1);
 }
 
-void send_list(vector<CliInfo> &vec, int sockfd)
-{
-    for (unsigned int i = 0; i < vec.size(); i++)
-    {
-        cout << "    cli[" << i << "]_IP:     " << vec[i].IP << endl
-             << "    cli[" << i << "]_port:   " << vec[i].port << endl
-             << "    cli[" << i << "]_sockfd: " << vec[i].sockfd << endl;
-        cout << "----------------------------" << endl;
-        char buf_tmp[100] = {0};
-        sprintf(buf_tmp, "\nIP: [%s], Port: [%d]\n", vec[i].IP, vec[i].port);
-        write(sockfd, buf_tmp, strlen(buf_tmp));
-    }
-}
+// void send_list(vector<CliInfo> &vec, int sockfd)
+// {
+//     for (unsigned int i = 0; i < vec.size(); i++)
+//     {
+//         cout << "    cli[" << i << "]_IP:     " << vec[i].IP << endl
+//              << "    cli[" << i << "]_port:   " << vec[i].port << endl
+//              << "    cli[" << i << "]_sockfd: " << vec[i].sockfd << endl;
+//         cout << "----------------------------" << endl;
+//         char buf_tmp[100] = {0};
+//         sprintf(buf_tmp, "\nIP: [%s], Port: [%d]\n", vec[i].IP, vec[i].port);
+//         write(sockfd, buf_tmp, strlen(buf_tmp));
+//     }
+// }
 
-int handle_command(DataCommand *recvData, DataDesc *sendData)
+int handle_command(DataCommand *dataCommand, int sockfd)
 {
-    switch (recvData->command)
+    bool is_send_list = false;
+    switch (dataCommand->command)
     {
         // case COMMAND_APPLY_CONNECT:
         //     //check out of client num
@@ -103,14 +119,51 @@ int handle_command(DataCommand *recvData, DataDesc *sendData)
         //     sendData->dataCommand.command = COMMAND_APPLY_CONNECT_SUCCESS;
         //     break;
 
-        case COMMANG_GET_FRIEND_LIST:
-            sendData->dataType = DATA_COMMAND;
-            sendData->dataCommand.command = COMMANG_SHOW_INFO;
-            sprintf(sendData->dataCommand.info, "[show]aaaabbbbcccc");
+        case COMMANG_GET_FRIEND_LIST: 
+            is_send_list = true;
+            // sendData.dataType = DATA_COMMAND;
+            // sendData.dataCommand.command = COMMANG_SHOW_INFO;
+            // //send_list(g_vec_cli_info, sockfd);
+            // CliInfo vec = g_vec_cli_info[0];
+            // sprintf(sendData.dataCommand.info, "IP:%s, port:%d", vec.IP, vec.port);
             break;
 
         default:
             break;
+    }
+
+    char buf_send[MAX_BUF_LEN] = {0};
+    DataDesc sendData;
+    memset(&sendData, 0, sizeof(sendData));
+
+    if (is_send_list == true)
+    {
+        sendData.dataType = DATA_COMMAND;
+        sendData.dataCommand.command = COMMANG_SHOW_INFO;
+        sprintf(sendData.dataCommand.info, "fd   name       IP               port");
+        encode(sendData, buf_send);
+        int len = 0;
+        memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
+        Write(sockfd, buf_send, len);
+        memset(&sendData, 0, sizeof(sendData));
+        memset(buf_send, 0, len);
+        usleep(10000);
+
+        for (unsigned int i = 0; i < g_vec_cli_info.size(); i++)
+        {
+            CliInfo &vec = g_vec_cli_info[i];
+            sendData.dataType = DATA_COMMAND;
+            sendData.dataCommand.command = COMMANG_SHOW_INFO;
+            sprintf(sendData.dataCommand.info, "%-4d %-10s %-16s %-6d", vec.sockfd, vec.name, vec.IP, vec.port);
+            encode(sendData, buf_send);
+            int len = 0;
+            memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
+            Write(sockfd, buf_send, len);
+
+            memset(&sendData, 0, sizeof(sendData));
+            memset(buf_send, 0, len);
+            usleep(10000);
+        }
     }
 
     return 0;
@@ -134,40 +187,55 @@ int handle_verify(DataVerify *data)
     return 0;
 }
 
-int handle_chat(DataChat *data)
+int handle_chat(DataChat *dataChat, int sockfd)
 {
-    return 0;
-}
-
-int handle_msg(char *buf_recv, char *buf_send, int sockfd)
-{
+    char buf_send[MAX_BUF_LEN] = {0};
     DataDesc sendData;
     memset(&sendData, 0, sizeof(sendData));
 
+    sendData.dataType = DATA_COMMAND;
+    sendData.dataCommand.command = COMMANG_SHOW_INFO;
+    strcpy(sendData.dataCommand.info, dataChat->data);
+    encode(sendData, buf_send);
+    int len = 0;
+    memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
+    printf("fd[%d]-->fd[%d]: %s\n", sockfd, dataChat->chat_to, dataChat->data);
+    Write(dataChat->chat_to, buf_send, len);
+    memset(&sendData, 0, sizeof(sendData));
+    memset(buf_send, 0, len);
+
+    return 0;
+}
+
+int handle_msg(char *buf_recv, int sockfd)
+{
+    printf("into handle_msg\n");
     DataDesc recvData;
     memset(&recvData, 0, sizeof(recvData));
-    decode(&recvData, buf_recv);
-    // printf_SendData(&recvData);
+    if (decode(&recvData, buf_recv) < 0)
+    {
+        printf("[ser] decode failed\n");
+        return -1;
+    }
+    printf_SendData(&recvData);
 
     if (recvData.dataType == DATA_COMMAND)
     {
-        sendData.dataType = DATA_COMMAND;
-        handle_command(&recvData.dataCommand, &sendData);
+        // sendData.dataType = DATA_COMMAND;
+        handle_command(&recvData.dataCommand, sockfd);
     }
-    // if (recvData.dataType == DATA_VERIFY)
-    // {
-    //     handle_verify(&recvData.dataVerify);
-    // }
-    // if (recvData.dataType == DATA_CHAT)
-    // {
-    //     handle_chat(&recvData.dataChat);
-    // }
-
-    encode(sendData, buf_send);
-
-    int len = 0;
-    memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
-    Write(sockfd, buf_send, len);
+    else if (recvData.dataType == DATA_VERIFY)
+    {
+        //handle_verify(&recvData.dataVerify);
+    }
+    else if (recvData.dataType == DATA_CHAT)
+    {
+        handle_chat(&recvData.dataChat, sockfd);
+    }
+    else
+    {
+        printf("invalid data\n");
+    }
 
     return 0;
 }
@@ -215,7 +283,7 @@ int main()
 
     char str_IP[INET_ADDRSTRLEN]; //INET_ADDRSTRLEN = 16
     char buf_recv[MAX_BUF_LEN] = {0};
-    char buf_send[MAX_BUF_LEN] = {0};
+    // char buf_send[MAX_BUF_LEN] = {0};
     printf("Accepting connections ...\n");
 
     while (1)
@@ -227,9 +295,10 @@ int main()
             perror("select error");
             break;
         }
-
+        printf("[debug] nready = %d\n", nready);
         if (FD_ISSET(listenfd, &rset)) // new connect arived
         {
+            printf("[debug] arived\n");
             CliInfo cli_info;
             struct sockaddr_in cliaddr;
             socklen_t cliaddr_len = sizeof(cliaddr);
@@ -240,6 +309,7 @@ int main()
             strcpy(cli_info.IP, str_IP);
             cli_info.port = ntohs(cliaddr.sin_port);
             cli_info.sockfd = connfd;
+            sprintf(cli_info.name, "n%d", connfd);
 
             printf("connect from %s at PORT %d\n",
                 str_IP, ntohs(cliaddr.sin_port));
@@ -272,6 +342,7 @@ int main()
 
         for (i = 0; i <= maxi; i++) //already connect sockfd
         {
+            printf("[debug] already\n");
             int sockfd = client_fd[i];
             if (sockfd < 0) continue;
 
@@ -292,14 +363,10 @@ int main()
                 } else
                 {
                     //printf("received buf: %s", buf);
-
-                    handle_msg(buf_recv, buf_send, sockfd);
+                    handle_msg(buf_recv, sockfd);
 
                     //clear buff
                     memset(buf_recv, 0, n);
-                    int len = 0;
-                    memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
-                    memset(buf_send, 0, len);
                 }
 
                 if (--nready == 0) break; //notice maxi and nready relationship, can early exit

@@ -146,66 +146,6 @@ void input(char *buf, int len)
     }
 }
 
-char buf_tmp[256] = {0};
-void test_encode(int type)
-{
-    memset(buf_tmp, 0, sizeof(buf_tmp));
-    DataDesc sendData;
-    memset(&sendData, 0, sizeof(sendData));
-    // printf("sendData size: %d\n", sizeof(sendData));
-    // printf("sendData encodeType size: %d\n", sizeof(sendData.encodeType));
-    // printf("sendData dataCommand size: %d\n", sizeof(sendData.dataCommand));
-    // printf("sendData dataVerify size: %d\n", sizeof(sendData.dataVerify));
-    // printf("sendData dataChat size: %d\n", sizeof(sendData.dataChat));
-    if (type == 0)
-    {
-        sendData.dataType = DATA_COMMAND;
-        sendData.dataCommand.command = COMMAND_APPLY_CONNECT;
-        printf_SendData(&sendData);
-        encode(sendData, buf_tmp);
-        // decode(sendData, buf_tmp);
-        // printf_send_data(&sendData);
-        // printf("buf_tmp head = [%c]\n", buf_tmp[0]);
-        // printf("buf_tmp size = [%d]\n", (int *)buf_tmp[1]);
-        // printf("buf_tmp type = [%d]\n", (int *)buf_tmp[5]);
-        // // int temp = 0;
-        // // memcpy(&temp, &buf_tmp[5], 4);
-        // printf("buf_tmp = [%d]\n",(int *)buf_tmp[9]);
-        // printf("buf_tmp = %s\n", &buf_tmp[13]);
-    }
-    if (type == 1)
-    {
-        sendData.dataType = DATA_VERIFY;
-        strcpy((char *)sendData.dataVerify.name, "clzhang");
-        strcpy((char *)sendData.dataVerify.pswd, "123456789");
-        printf_SendData(&sendData);
-        encode(sendData, buf_tmp);
-        // decode(sendData, buf_tmp);
-        // printf_send_data(&sendData);
-        // printf("buf_tmp head = [%c]\n", buf_tmp[0]);
-        // printf("buf_tmp size = [%d]\n", (int *)buf_tmp[1]);
-        // printf("buf_tmp type = [%d]\n", (int *)buf_tmp[5]);
-        // printf("buf_tmp = [%s]\n", &buf_tmp[9]);
-    }
-    if (type == 2)
-    {
-        sendData.dataType = DATA_CHAT;
-        sendData.dataChat.chat_from = 5;
-        sendData.dataChat.chat_to = 6;
-        strcpy((char *)sendData.dataChat.data, "How arw you? I am fine, Thank you!");
-        printf_SendData(&sendData);
-        encode(sendData, buf_tmp);
-        // decode(sendData, buf_tmp);
-        // printf_send_data(&sendData);
-        // printf("buf_tmp head = [%c]\n", buf_tmp[0]);
-        // printf("buf_tmp size = [%d]\n", (int *)buf_tmp[1]);
-        // printf("buf_tmp type = [%d]\n", (int *)buf_tmp[5]);
-        // printf("buf_tmp from = [%d]\n", (int *)buf_tmp[9]);
-        // printf("buf_tmp to = [%d]\n", (int *)buf_tmp[13]);
-        // printf("buf_tmp = [%s]\n", &buf_tmp[17]);
-    }
-}
-
 void printf_buf(char *buf)
 {
     printf("[%c][%d], t1:[%d], t2:[%d]\n",
@@ -220,61 +160,59 @@ void printf_buf(char *buf)
 
 void module_sign_in(int sockfd, char *buf)
 {
-    DataDesc sendData;
-    memset(&sendData, 0, sizeof(sendData));
-    printf("sign in......\n");
-    printf("please input name: clzhang\n");
-    printf("please input pswd: ******\n");
-    sendData.dataType = DATA_VERIFY;
-    sendData.dataVerify.type = VERIFY_SIGN_IN;
-    strcpy((char *)sendData.dataVerify.name, "clzhang");
-    strcpy((char *)sendData.dataVerify.pswd, "******");
-    encode(sendData, buf);
-    printf_SendData(&sendData);
+    // DataDesc sendData;
+    // memset(&sendData, 0, sizeof(sendData));
+    // printf("sign in......\n");
+    // printf("please input name: clzhang\n");
+    // printf("please input pswd: ******\n");
+    // sendData.dataType = DATA_VERIFY;
+    // sendData.dataVerify.type = VERIFY_SIGN_IN;
+    // strcpy((char *)sendData.dataVerify.name, "clzhang");
+    // strcpy((char *)sendData.dataVerify.pswd, "******");
+    // encode(sendData, buf);
+    // // printf_SendData(&sendData);
 
-    int len = 0;
-    memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
-    Write(sockfd, buf, len);
-    memset(buf, 0, len);
+    // int len = 0;
+    // memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
+    // Write(sockfd, buf, len);
+    // memset(buf, 0, len);
 }
 void module_sign_up(int sockfd, char *buf)
 {
-    DataDesc sendData;
-    memset(&sendData, 0, sizeof(sendData));
-    printf("sign up......\n");
-    printf("please input name: newname\n");
-    printf("please input pswd: ******\n");
-    sendData.dataType = DATA_VERIFY;
-    sendData.dataVerify.type = VERIFY_SIGN_UP;
-    strcpy((char *)sendData.dataVerify.name, "newname");
-    strcpy((char *)sendData.dataVerify.pswd, "******");
-    encode(sendData, buf);
-    printf_SendData(&sendData);
+    // DataDesc sendData;
+    // memset(&sendData, 0, sizeof(sendData));
+    // printf("sign up......\n");
+    // printf("please input name: newname\n");
+    // printf("please input pswd: ******\n");
+    // sendData.dataType = DATA_VERIFY;
+    // sendData.dataVerify.type = VERIFY_SIGN_UP;
+    // strcpy((char *)sendData.dataVerify.name, "newname");
+    // strcpy((char *)sendData.dataVerify.pswd, "******");
+    // encode(sendData, buf);
+    // printf_SendData(&sendData);
 
-    int len = 0;
-    memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
-    Write(sockfd, buf, len);
-    memset(buf, 0, len);
+    // int len = 0;
+    // memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
+    // Write(sockfd, buf, len);
+    // memset(buf, 0, len);
 }
 
 void module_admin(int sockfd, char *buf)
 {
-    //fill data
+    char buf_buf[200] = {0};
     DataDesc sendData;
     memset(&sendData, 0, sizeof(sendData));
     sendData.dataType = DATA_COMMAND;
     sendData.dataCommand.command = COMMANG_GET_FRIEND_LIST;
-    strcpy((char *)sendData.dataCommand.info, "This is test info");
+    strcpy(sendData.dataCommand.info, "");
 
-    //encode
-    encode(sendData, buf);
-    //printf_SendData(&sendData);
-
-    //write msg
-    int len = 0;
-    memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
-    Write(sockfd, buf, len);
-    memset(buf, 0, len);
+    if (encode(sendData, buf_buf) < 0)
+    {
+        printf("encode failed!\n");
+        return;
+    }
+    int len = get_buf_len(buf_buf);
+    Write(sockfd, buf_buf, len);
 }
 
 // int efd = 0;
@@ -295,44 +233,38 @@ int handle_command(DataCommand *recvData)
 {
     switch (recvData->command)
     {
-        // case COMMAND_APPLY_CONNECT:
-        //     //check out of client num
-        //     //
-        //     recvData->dataType = DATA_COMMAND;
-        //     sendData->dataCommand.command = COMMAND_APPLY_CONNECT_SUCCESS;
-        //     break;
-
         case COMMANG_SHOW_INFO:
-            printf("%s\n", recvData->info);
+            printf("ser-> %s\n", recvData->info);
             break;
 
-    //     default:
-    //         break;
+        case COMMAND_APPLY_CONNECT_SUCCESS:
+            printf("COMMAND_APPLY_CONNECT_SUCCESS\n");
+            break;
+
+        case COMMAND_APPLY_CONNECT_FAIL:
+            printf("COMMAND_APPLY_CONNECT_FAIL\n");
+            break;
+
+        case COMMAND_SIGN_IN_SUCCESS:
+            printf("COMMAND_SIGN_IN_SUCCESS\n");
+            break;
+
+        case COMMAND_SIGN_IN_FAIL:
+            printf("COMMAND_SIGN_IN_FAIL\n");
+            break;
+
+        case COMMAND_SIGN_UP_SUCCESS:
+            printf("COMMAND_SIGN_UP_SUCCESS\n");
+            break;
+
+        case COMMAND_SIGN_UP_FAIL:
+            printf("COMMAND_SIGN_UP_FAIL\n");
+            break;
+
+        default:
+            break;
     }
 
-    return 0;
-}
-
-int handle_verify(DataVerify *data)
-{
-    // DataDesc sendData;
-    // memset(&sendData, 0, sizeof(sendData));
-    // sendData.dataType = DATA_COMMAND;
-    // if (data->type == VERIFY_SIGN_IN)
-    // {
-    //     //to de check
-    //     sendData.dataCommand.command = COMMAND_SIGN_IN_SUCCESS;
-    // }
-    // if (data->type == VERIFY_SIGN_UP)
-    // {
-
-    // }
-
-    return 0;
-}
-
-int handle_chat(DataChat *data)
-{
     return 0;
 }
 
@@ -343,24 +275,15 @@ int handle_msg(char *buf_recv, char *buf_send)
     decode(&recvData, buf_recv);
     // printf_SendData(&recvData);
 
+    // only rece command
     if (recvData.dataType == DATA_COMMAND)
     {
         handle_command(&recvData.dataCommand);
     }
-    // if (recvData.dataType == DATA_VERIFY)
-    // {
-    //     handle_verify(&recvData.dataVerify);
-    // }
-    // if (recvData.dataType == DATA_CHAT)
-    // {
-    //     handle_chat(&recvData.dataChat);
-    // }
-
-    // encode(sendData, buf_send);
-
-    // int len = 0;
-    // memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
-    // Write(sockfd, buf_send, len);
+    else
+    {
+        printf("invalid msg from server!\n");
+    }
 
     return 0;
 }
@@ -423,9 +346,10 @@ int main()
 
     printf("-----Welcome to chatroom-----\n");
     printf(BLINK "^_^\n" NONE);
+    printf_menu_ready();
+    int status = 0;
     while (is_running)
     {
-        printf_menu_ready();
         fdset = allset;
         int nready = select(max_fd+1, &fdset, NULL, NULL, NULL);
         if (nready <= 0)
@@ -436,6 +360,7 @@ int main()
 
         if (FD_ISSET(STDIN_FILENO, &fdset))
         {
+            if (status == 0){
             char buf[5] = {0};
             input(buf, 2);
             switch (buf[0])
@@ -457,7 +382,6 @@ int main()
 
                 case '4':
                     printf("enter set\n");
-                    test_encode(2);
                     break;
 
                 case '5':
@@ -468,6 +392,7 @@ int main()
 
                 default:
                     printf("invalid input\n"); break;
+            }
             }
         }
 
@@ -489,59 +414,8 @@ int main()
                 memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
                 memset(buf_send, 0, len);
 
-                // //clear buf_recv buf_send
-                // memset(buf_recv, 0, n);
-                // int len = 0;
-                // memcpy(&len, &buf_send[LEN_OFFSET], LEN_SIZE);
-                // memset(buf_send, 0, len);
-
-                // DataDesc recvData;
-                // memset(&recvData, 0, sizeof(recvData));
-                // decode(&recvData, buf_recv);
-                // if (recvData.dataType == DATA_COMMAND)
-                // {
-                //     switch (recvData.dataCommand.command)
-                //     {
-                //         case COMMAND_APPLY_CONNECT_SUCCESS:
-                //             printf("[recv] apply connect success!\n");
-                //             break;
-
-                //         case COMMAND_APPLY_CONNECT_FAIL:
-                //             printf("[recv] apply connect fail!\n");
-                //             break;
-
-                //         case COMMAND_SIGN_IN_SUCCESS:
-                //             printf("[recv] sign in success!\n");
-                //             break;
-
-                //         case COMMAND_SIGN_IN_FAIL:
-                //             printf("[recv] sign in fail!\n");
-                //             break;
-
-                //         case COMMAND_SIGN_UP_SUCCESS:
-                //             printf("[recv] sign up success!\n");
-                //             break;
-
-                //         case COMMAND_SIGN_UP_FAIL:
-                //             printf("[recv] sign up fail!\n");
-                //             break;
-
-                //         default:
-                //             break;
-                //     }
-                // }
             }
         }
-
-        // if (FD_ISSET(efd, &fdset))
-        // {
-        //     printf("event efd\n");
-        //     uint64_t u = 0;
-        //     ssize_t s = read(efd, &u, sizeof(uint64_t));  
-        //     if (s != sizeof(uint64_t))
-        //         perror("read");  
-        //     printf("read %llu efd, to break\n",(unsigned long long)u);
-        // }
     }
 
     printf("main exit!\n");
