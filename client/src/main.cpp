@@ -12,12 +12,12 @@
 #include <pthread.h>
 #include <sys/eventfd.h>
 #include <stdlib.h>
+#include <getopt.h>
 
 #include "wrap.h"
 #include "en_de_code.h"
 
 #define MAX_BUF_LEN 256
-#define LISTEN_PORT 10500
 
 #define NONE                 "\e[0m"
 #define BLACK                "\e[0;30m"
@@ -90,7 +90,8 @@ int printf_color(void)
     return 0;
 }
 
-static int is_running = 1;
+static int is_running = 1;\
+static int is_running_thread = 1;
 
 static void printf_menu_ready()
 {
@@ -105,9 +106,10 @@ static void printf_menu_ready()
 static void printf_menu_chat()
 {
     printf("Please select item:\n");
-    printf("    1. who online.\n");
+    printf("    1. get friend list.\n");
     printf("    2. select item to chat.\n");
-    printf("    3. log out.\n");
+    printf("    q. quit.\n");
+    // printf("\tq) quit.\n"); //TODO
 }
 
 //是否存在'\n'，并将回车改为'\0'
@@ -158,73 +160,181 @@ void printf_buf(char *buf)
     printf("msg: [%s]\n", buf+4+n+1);
 }
 
-void module_sign_in(int sockfd, char *buf)
+static bool is_sign_in_flag = false;
+static bool is_sign_up_flag = false;
+
+int module_admin(int sockfd);
+int module_sign_in(int sockfd)
 {
+    // char buf_send[MAX_BUF_LEN] = {0};
+
     // DataDesc sendData;
     // memset(&sendData, 0, sizeof(sendData));
     // printf("sign in......\n");
     // printf("please input name: clzhang\n");
-    // printf("please input pswd: ******\n");
+    // printf("please input pswd: 123456\n");
     // sendData.dataType = DATA_VERIFY;
     // sendData.dataVerify.type = VERIFY_SIGN_IN;
     // strcpy((char *)sendData.dataVerify.name, "clzhang");
-    // strcpy((char *)sendData.dataVerify.pswd, "******");
-    // encode(sendData, buf);
+    // strcpy((char *)sendData.dataVerify.pswd, "123456");
+    // encode(sendData, buf_send);
     // // printf_SendData(&sendData);
 
-    // int len = 0;
-    // memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
-    // Write(sockfd, buf, len);
-    // memset(buf, 0, len);
-}
-void module_sign_up(int sockfd, char *buf)
-{
-    // DataDesc sendData;
-    // memset(&sendData, 0, sizeof(sendData));
-    // printf("sign up......\n");
-    // printf("please input name: newname\n");
-    // printf("please input pswd: ******\n");
-    // sendData.dataType = DATA_VERIFY;
-    // sendData.dataVerify.type = VERIFY_SIGN_UP;
-    // strcpy((char *)sendData.dataVerify.name, "newname");
-    // strcpy((char *)sendData.dataVerify.pswd, "******");
-    // encode(sendData, buf);
-    // printf_SendData(&sendData);
+    // int len = get_buf_len(buf_send);
+    // Write(sockfd, buf_send, len);
+    // memset(buf_send, 0, len);
 
-    // int len = 0;
-    // memcpy(&len, &buf[LEN_OFFSET], LEN_SIZE);
-    // Write(sockfd, buf, len);
-    // memset(buf, 0, len);
-}
+    // int i = 20; //20*100ms=2s
+    // while (is_sign_in_flag == false && i--)
+    // {
+    //     usleep(100000);
+    // }
+    // if (i <= 0)
+    // {
+    //     printf("sign in failed! Please check name and pswd.\n");
+    //     return -1;
+    // }
+    // else {
+    //     printf("sign in succeed.\n");
+    //     module_admin(sockfd);
+    // }
 
-void module_admin(int sockfd, char *buf)
+    // return 0;
+}
+int module_sign_up(int sockfd)
 {
-    char buf_buf[200] = {0};
+    char buf_send[MAX_BUF_LEN] = {0};
+
     DataDesc sendData;
     memset(&sendData, 0, sizeof(sendData));
-    sendData.dataType = DATA_COMMAND;
-    sendData.dataCommand.command = COMMANG_GET_FRIEND_LIST;
-    strcpy(sendData.dataCommand.info, "");
+    printf("sign up......\n");
+    char name[20] = {0};
+    char pswd[20] = {0};
+    printf("please input name: ");
+    input(name, 20);
+    printf("please input pswd: ");
+    input(pswd, 20);
+    printf("\n");
+    sendData.dataType = DATA_VERIFY;
+    sendData.dataVerify.type = VERIFY_SIGN_UP;
+    strcpy((char *)sendData.dataVerify.name, name);
+    strcpy((char *)sendData.dataVerify.pswd, pswd);
+    encode(sendData, buf_send);
+    // printf_SendData(&sendData);
 
-    if (encode(sendData, buf_buf) < 0)
+    int len = get_buf_len(buf_send);
+    Write(sockfd, buf_send, len);
+    memset(buf_send, 0, len);
+
+    int i = 20; //20*100ms=2s
+    while (is_sign_up_flag == false && i--)
     {
-        printf("encode failed!\n");
-        return;
+        usleep(100000);
     }
-    int len = get_buf_len(buf_buf);
-    Write(sockfd, buf_buf, len);
+    if (i <= 0)
+    {
+        printf("sign up failed! Please check name and pswd.\n");
+        return -1;
+    }
+    else {
+        printf("sign up succeed.\n");
+        module_admin(sockfd);
+    }
+
+    return 0;
 }
 
-// int efd = 0;
+int set_params(char *buf)
+{
+    if (strncmp(buf, "-set ", sizeof("-set ")) == 0)
+    {
+        char *content = &buf[strlen("-set ")];
+        
+    }
+    return 0;
+}
+
+int module_admin(int sockfd)
+{
+    char buf_send[MAX_BUF_LEN] = {0};
+    DataDesc sendData;
+
+    //TODO How to exit in here
+    bool is_running = true;
+    while (is_running)
+    {
+        printf_menu_chat();
+        char buf[5] = {0};
+        input(buf, 2);
+        switch (buf[0])
+        {
+            case '1': {
+                sendData.dataType = DATA_COMMAND;
+                sendData.dataCommand.command = COMMANG_GET_FRIEND_LIST;
+                strcpy(sendData.dataCommand.info, "");
+                if (encode(sendData, buf_send) < 0)
+                {
+                    printf("encode failed!\n");
+                    return -1;
+                }
+                int len = get_buf_len(buf_send);
+                Write(sockfd, buf_send, len);
+                memset(&sendData, 0, sizeof(sendData));
+                memset(buf_send, 0, len);
+                }
+                break;
+
+            case '2': {
+                char id[8] = {0};
+                char msg[100] = {0};
+                printf("please input id: ");
+                input(id, 8);
+                printf("please input msg: ");
+                input(msg, 100);
+                printf("\n");
+                sendData.dataType = DATA_CHAT;
+                sendData.dataChat.chat_to = atoi(id);
+                strcpy(sendData.dataChat.data, msg);
+                if (encode(sendData, buf_send) < 0)
+                {
+                    printf("encode failed!\n");
+                    return -1;
+                }
+                int len = get_buf_len(buf_send);
+                Write(sockfd, buf_send, len);
+                memset(&sendData, 0, sizeof(sendData));
+                memset(buf_send, 0, len);
+                }
+                break;
+
+            case 'q':
+                is_running = false;
+                break;
+
+            default:
+                printf("invalid input\n");
+                break;
+        }
+    }
+
+    return 0;
+}
+
+int efd_thread = 0;
+// int efd_main = 0;
 void signalstop(int sign_no)
 {
     if(sign_no == SIGINT)
     {
-        is_running = 0;
-        // uint64_t u = 10;
-        // ssize_t s = write(efd, &u, sizeof(uint64_t));
+        uint64_t u = 10;
+        ssize_t s = write(efd_thread, &u, sizeof(uint64_t));
+        if (s != sizeof(uint64_t))
+            perror("write");
+
+        // s = write(efd_main, &u, sizeof(uint64_t));
         // if (s != sizeof(uint64_t))
         //     perror("write");
+
         printf("in signalstop!\n");
     }
 }
@@ -234,7 +344,7 @@ int handle_command(DataCommand *recvData)
     switch (recvData->command)
     {
         case COMMANG_SHOW_INFO:
-            printf("ser-> %s\n", recvData->info);
+            printf("%s\n", recvData->info);
             break;
 
         case COMMAND_APPLY_CONNECT_SUCCESS:
@@ -247,17 +357,21 @@ int handle_command(DataCommand *recvData)
 
         case COMMAND_SIGN_IN_SUCCESS:
             printf("COMMAND_SIGN_IN_SUCCESS\n");
+            is_sign_in_flag = true;
             break;
 
         case COMMAND_SIGN_IN_FAIL:
+            is_sign_in_flag = false;
             printf("COMMAND_SIGN_IN_FAIL\n");
             break;
 
         case COMMAND_SIGN_UP_SUCCESS:
+            is_sign_up_flag = true;
             printf("COMMAND_SIGN_UP_SUCCESS\n");
             break;
 
         case COMMAND_SIGN_UP_FAIL:
+            is_sign_up_flag = false;
             printf("COMMAND_SIGN_UP_FAIL\n");
             break;
 
@@ -299,56 +413,25 @@ void test_printf(const char *fmt, ...)
 #define PRINTF_INFO(fmt, ...)  (printf(GREEN "[INFO] %s" NONE, fmt))
 #define PRINTF_DEBUG(fmt, ...) (printf(WHITE "[DEBUG] %s" NONE, fmt))
 
-int main()
+void *thread_rece(void *arg)
 {
-    // printf("[%2u]" RED "RED " L_RED "L_RED\n" NONE, __LINE__);
-    // printf("[%2u]" GREEN "GREEN " L_GREEN "L_GREEN\n" NONE, __LINE__);
-    // printf("[this]" " is" " test" "\n");
-    // test_printf("[this]" " is" " test" "\n");
-    // PRINTF_ERROR("444\n");
-    // PRINTF_WARN("333\n");
-    // PRINTF_INFO("222\n");
-    // PRINTF_DEBUG("111\n");
+    int *param = (int *)arg;
+    int sockfd = *param;
+    printf("into thread, arg is %d\n", sockfd);
 
-    // return 0;
-
-    signal(SIGINT, signalstop);
-    //printf_color();
-
-    char buf_send[MAX_BUF_LEN] = {0};
     char buf_recv[MAX_BUF_LEN] = {0};
-    int sockfd = Socket(AF_INET, SOCK_STREAM, 0);
-
-    struct sockaddr_in servaddr;
-    bzero(&servaddr, sizeof(servaddr));
-    servaddr.sin_family = AF_INET;
-    inet_pton(AF_INET, "127.0.0.1", &servaddr.sin_addr);
-    servaddr.sin_port = htons(LISTEN_PORT);
-
-    Connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
-
-    // efd = eventfd(0, 0);
-    // if (efd < 0) {
-    //     perror("efd init failed: \n");
-    // }
+    char buf_send[MAX_BUF_LEN] = {0};
 
     fd_set allset;
     fd_set fdset;
     FD_ZERO(&allset);
     FD_ZERO(&fdset);
-    FD_SET(STDIN_FILENO, &allset);
     FD_SET(sockfd, &allset);
-    // FD_SET(efd, &allset);
+    FD_SET(efd_thread, &allset);
 
-    // to optimization
-    int max_fd = sockfd > STDIN_FILENO ? sockfd : STDIN_FILENO;
-    // max_fd = efd > max_fd ? efd : max_fd;
+    int max_fd = sockfd > efd_thread ? sockfd : efd_thread;
 
-    printf("-----Welcome to chatroom-----\n");
-    printf(BLINK "^_^\n" NONE);
-    printf_menu_ready();
-    int status = 0;
-    while (is_running)
+    while (is_running_thread == 1)
     {
         fdset = allset;
         int nready = select(max_fd+1, &fdset, NULL, NULL, NULL);
@@ -356,44 +439,6 @@ int main()
         {
             perror("select error");
             break;
-        }
-
-        if (FD_ISSET(STDIN_FILENO, &fdset))
-        {
-            if (status == 0){
-            char buf[5] = {0};
-            input(buf, 2);
-            switch (buf[0])
-            {
-                case '1':
-                    printf("enter sign in\n");
-                    module_sign_in(sockfd, buf_send);
-                    break;
-
-                case '2':
-                    printf("enter sign up\n");
-                    module_sign_up(sockfd, buf_send);
-                    break;
-
-                case '3':
-                    printf("enter administrator\n");
-                    module_admin(sockfd, buf_send);
-                    break;
-
-                case '4':
-                    printf("enter set\n");
-                    break;
-
-                case '5':
-                    printf("enter exit\n");
-                    is_running = 0;
-                    //Write(sockfd, "456", sizeof("456"));
-                    break;
-
-                default:
-                    printf("invalid input\n"); break;
-            }
-            }
         }
 
         if (FD_ISSET(sockfd, &fdset))
@@ -416,10 +461,179 @@ int main()
 
             }
         }
+        if (FD_ISSET(efd_thread, &fdset))
+        {
+            printf("select efd, to exit thread\n");
+            uint64_t u = 0;
+            ssize_t s = read(efd_thread, &u, sizeof(uint64_t));  
+            if (s != sizeof(uint64_t))
+                perror("read");  
+            printf("read %llu efd_thread, to break\n",(unsigned long long)u);
+            is_running_thread = 0;
+        }
+    }
+    printf("thread exit!\n");
+    return NULL;
+}
+
+static const char *short_options = "p:i:";
+static struct option long_options[] = {
+    {"connect port",    required_argument, 0, 'p'},
+    {"connect IP",      required_argument, 0, 'i'},
+    {0, 0, 0, 0}
+};
+
+static void usage(int argc, char *argv[])
+{
+    printf("%s usage:\n", argv[0]);
+    printf("\t -i:  input server IP addr, eg.192.168.0.1\n");
+    printf("\t -p:  input server port, default 10500.\n");
+    printf("\t -h:  for help.\n");
+}
+
+int main(int argc, char *argv[])
+{
+    // printf("[%2u]" RED "RED " L_RED "L_RED\n" NONE, __LINE__);
+    // printf("[%2u]" GREEN "GREEN " L_GREEN "L_GREEN\n" NONE, __LINE__);
+    // printf("[this]" " is" " test" "\n");
+    // test_printf("[this]" " is" " test" "\n");
+    // PRINTF_ERROR("444\n");
+    // PRINTF_WARN("333\n");
+    // PRINTF_INFO("222\n");
+    // PRINTF_DEBUG("111\n");
+
+    // return 0;
+
+    signal(SIGINT, signalstop);
+    signal(SIGQUIT, signalstop);
+    signal(SIGTERM, signalstop);
+
+    //printf_color();
+
+    int port = 10500;
+    char str_IP[INET_ADDRSTRLEN] = "127.0.0.1";
+
+    int ch = 0;
+    int option_index = 0;
+    while ((ch = getopt_long(argc, argv, short_options, long_options, &option_index)) != -1) {
+        switch (ch) {
+
+        case 'p':
+            port = atoi(optarg);
+            break;
+
+        case 'i':
+            strcpy(str_IP, optarg);
+            break;
+
+        default:
+            usage(argc, argv);
+            return 0;
+        }
+    }
+    printf("connect %s:%d\n", str_IP, port);
+    int sockfd = Socket(AF_INET, SOCK_STREAM, 0);
+
+    struct sockaddr_in servaddr;
+    bzero(&servaddr, sizeof(servaddr));
+    servaddr.sin_family = AF_INET;
+    inet_pton(AF_INET, str_IP, &servaddr.sin_addr);
+    servaddr.sin_port = htons(port);
+
+    Connect(sockfd, (struct sockaddr *)&servaddr, sizeof(servaddr));
+
+    efd_thread = eventfd(0, 0);
+    if (efd_thread < 0) {
+        perror("efd_thread init failed: \n");
+    }
+    // efd_main = eventfd(0, 0);
+    // if (efd_main < 0) {
+    //     perror("efd_thread init failed: \n");
+    // }
+
+pthread_t ntid_rece;
+pthread_create(&ntid_rece, NULL, thread_rece, (void *)&sockfd);
+
+
+    fd_set allset;
+    fd_set fdset;
+    FD_ZERO(&allset);
+    FD_ZERO(&fdset);
+    FD_SET(STDIN_FILENO, &allset);
+    //FD_SET(efd_main, &allset);
+
+    //int max_fd = efd_main > STDIN_FILENO ? efd_main : STDIN_FILENO;
+    int max_fd = STDIN_FILENO;
+
+    printf("-----Welcome to chatroom-----\n");
+    printf(BLINK "^_^\n" NONE);
+    while (is_running)
+    {
+        printf_menu_ready();
+        fdset = allset;
+        int nready = select(max_fd+1, &fdset, NULL, NULL, NULL);
+        if (nready <= 0)
+        {
+            perror("select error");
+            break;
+        }
+
+        if (FD_ISSET(STDIN_FILENO, &fdset))
+        {
+            char buf[5] = {0};
+            input(buf, 2);
+            switch (buf[0])
+            {
+                case '1':
+                    printf("enter sign in\n");
+                    module_sign_in(sockfd);
+                    break;
+
+                case '2':
+                    printf("enter sign up\n");
+                    module_sign_up(sockfd);
+                    break;
+
+                case '3':
+                    printf("enter administrator\n");
+                    module_admin(sockfd);
+                    break;
+
+                case '4':
+                    printf("enter set\n");
+                    break;
+
+                case '5':{
+                    printf("enter exit\n");
+                    is_running = 0;
+                    uint64_t u = 10;
+                    ssize_t s = write(efd_thread, &u, sizeof(uint64_t));
+                    if (s != sizeof(uint64_t))
+                        perror("write");}
+                    break;
+
+                default:
+                    printf("invalid input\n");
+                    break;
+            }
+        }
+
+        // if (FD_ISSET(efd_main, &fdset))
+        // {
+        //     printf("event efd\n");
+        //     uint64_t u = 0;
+        //     ssize_t s = read(efd_main, &u, sizeof(uint64_t));  
+        //     if (s != sizeof(uint64_t))
+        //         perror("read");  
+        //     printf("read %llu efd_main, to break\n",(unsigned long long)u);
+        //     is_running = 0;
+        // }
     }
 
-    printf("main exit!\n");
+    pthread_join(ntid_rece, NULL);
+
     Close(sockfd);
+    printf("main exit!\n");
 
     return 0;
 }
